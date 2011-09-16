@@ -1,6 +1,14 @@
 var assert = require('assert');
 
 const UP = 1, DOWN = 0;
+               
+function flip() {
+    return Math.random() < 0.5;
+}
+        
+function random(min, max) {
+    return min + Math.floor((max - min) * Math.random());
+}
 
 function Elevator(building, n) {
     this._building = building;
@@ -23,7 +31,7 @@ Elevator.prototype.idle = function() {
     else if (this._floor == this.parms().max_floor)
         dir = DOWN;
     else
-        dir = (Math.random() < 0.5) ? UP : DOWN;
+        dir = flip() ? UP : DOWN;
     this.moveUntil(dir,
                    function () {
                        return false;
@@ -43,18 +51,23 @@ Elevator.prototype.moveUntil = function(dir, done, next) {
         }.bind(this));
 }
 
-function Passenger() {
+function Passenger(start, dest) {
+    this._start = start;
+    this._dest  = dest;
 }
 
 function Building(sim) {
     var i;
     this._sim = sim;
     this._elevators = [];
-    this._passengers = [];
+    this._floors    = [];
     for (i = 0; i < sim._parms.num_elevators; i++)
         this._elevators.push(new Elevator(this, i));
     for (i = 0; i <= sim._parms.max_floor; i++)
-        this._passengers.push([]);
+        this._floors.push({
+                passengers: [],
+                loading:    null,
+                called:     { UP: false, DOWN: false}});
 }
 
 function Simulation(parms) {
@@ -62,8 +75,9 @@ function Simulation(parms) {
     this._clock = [];
     this._tick  = 0;
     this._building = new Building(this);
+    this.new_passenger();
 }
-
+        
 Simulation.prototype.run = function (ticks) {
     var i;
     for (i = 0; i < ticks; i++)
@@ -100,13 +114,33 @@ Simulation.prototype.move = function (car, direction, cb) {
                    cb();
                });
 }
+        
+Simulation.prototype.add_passenger = function (p) {
+    var direction = (p._start > p._dest) ? DOWN : UP;
+    console.log("New passenger at", p._start, "->", p._dest);
+    this._building._floors[p._start].passengers.push(p);
+    this._building._floors[p._start].called[direction] = true;
+}
+        
+Simulation.prototype.new_passenger = function () {
+    var start, dest;
+    if (flip()) {
+        start = 0;
+        dest  = random(1, this._parms.max_floor + 1);
+    } else {
+        dest  = 0;
+        start = random(1, this._parms.max_floor + 1);
+    }
+    this.add_passenger(new Passenger(start, dest));
+    this.after(4, this.new_passenger.bind(this));
+}
 
 var s = new Simulation({
                            num_elevators:   4,
                            max_floor:       39,
-                           ticks_per_floor: 1
+                           ticks_per_floor: 1,
                        });
-s.run(10);
+s.run(50);
 
 console.log("floors:", s._building._elevators.map(function (e) {
                                                       return e._floor;
