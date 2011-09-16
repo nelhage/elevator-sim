@@ -1,5 +1,7 @@
 var assert = require('assert');
 
+const UP = 1, DOWN = 0;
+
 function Elevator(building, n) {
     this._building = building;
     this._sim      = building._sim;
@@ -15,28 +17,30 @@ Elevator.prototype.parms = function() {
 }
 
 Elevator.prototype.idle = function() {
-    var dir = 1 + 2*Math.floor(2*Math.random());
+    var dir;
     if (this._floor == 0)
-        dir = 1;
+        dir = UP;
     else if (this._floor == this.parms().max_floor)
-        dir = -1;
+        dir = DOWN;
+    else
+        dir = (Math.random() < 0.5) ? UP : DOWN;
     this.moveUntil(dir,
                    function () {
-                       return this._floor === 0 || this._floor === this.parms().max_floor
+                       return false;
                    }.bind(this),
                    this.idle.bind(this));
 }
 
 Elevator.prototype.moveUntil = function(dir, done, next) {
-    console.assert(dir === -1 || dir === 1);
-    this._sim.after(this.parms().ticks_per_floor,
-                    function() {
-                        this._floor += dir;
-                        if (done())
-                            next();
-                        else
-                            this.moveUntil(dir, done, next);
-                    }.bind(this));
+    this._sim.move(this, dir, 
+        function() {
+            if (this._floor === this.parms().max_floor
+                || this._floor === 0
+                || done())
+                next()
+            else
+                this.moveUntil(dir, done, next);
+        }.bind(this));
 }
 
 function Passenger() {
@@ -87,6 +91,14 @@ Simulation.prototype.at = function (tick, cb) {
 
 Simulation.prototype.after = function (delay, cb) {
     this.at(this._tick + delay, cb);
+}
+        
+Simulation.prototype.move = function (car, direction, cb) {
+    console.assert(direction === UP || direction === DOWN);
+    this.after(this._parms.ticks_per_floor, function () {
+                   car._floor += (direction === UP) ? 1 : -1;
+                   cb();
+               });
 }
 
 var s = new Simulation({
