@@ -72,7 +72,7 @@ Simulation.prototype.run = function (ticks) {
 
 Simulation.prototype.tick = function () {
     var i,q;
-    this._clock.sort(function(a, b) { return a.tick - b.tick;});
+    this._clock.sort(function(a, b) { return b.tick - a.tick;});
     
     i = this._clock.length - 1;
     q = [];
