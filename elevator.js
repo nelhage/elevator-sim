@@ -1,15 +1,16 @@
+/* -*- mode: js2; js2-basic-offset: 4; -*- */
 var assert = require('assert');
 
 const UP = 1, DOWN = 0;
-               
+
 function debug() {
     // console.log.apply(console, arguments);
 }
-               
+
 function flip() {
     return Math.random() < 0.5;
 }
-        
+
 function random(min, max) {
     return min + Math.floor((max - min) * Math.random());
 }
@@ -32,7 +33,7 @@ Elevator.prototype.parms = function() {
 
 Elevator.prototype.idle = function() {
     if (this._building._floors[this._floor].called[this._last_move]) {
-        this._sim.load_unload(this, this._last_move, 
+        this._sim.load_unload(this, this._last_move,
             this.deliver_passengers.bind(this));
         return;
     }
@@ -49,7 +50,7 @@ Elevator.prototype.idle = function() {
                    }.bind(this),
                    this.idle.bind(this));
 }
-        
+
 Elevator.prototype.deliver_passengers = function () {
     var dir;
     if (Object.keys(this._pressed).length === 0)
@@ -81,7 +82,7 @@ Elevator.prototype.deliver_passengers = function () {
 
 Elevator.prototype.moveUntil = function(dir, done, next) {
     this._last_move = dir;
-    this._sim.move(this, dir, 
+    this._sim.move(this, dir,
         function() {
             if (this._floor === this.parms().max_floor
                 || this._floor === 0
@@ -92,17 +93,49 @@ Elevator.prototype.moveUntil = function(dir, done, next) {
         }.bind(this));
 }
 
-function Passenger(start, dest) {
-    this._start = start;
-    this._dest  = dest;
+function Passenger(sim, start, dest) {
+    this._sim     = sim;
+    this._start   = start;
+    this._dest    = dest;
+    this._created = sim._tick;
 }
-        
+
 Passenger.prototype.loaded = function (e) {
     e._pressed[this._dest] = true;
 }
-        
-Passenger.prototype.arrive = function () {
 
+Passenger.prototype.arrive = function () {
+    this._sim._stats.arrived(this);
+}
+
+function Stats(sim) {
+    this._sim = sim;
+    this._passengers_delivered = [];
+    this._latency = [];
+    for (var i = 0; i <= this._sim._parms.max_floor; i++) {
+        this._passengers_delivered.push(0);
+        this._latency.push(0);
+    }
+}
+
+Stats.prototype.arrived = function (p) {
+    this._passengers_delivered[p._start]++;
+    this._latency[p._start] += (this._sim._tick - p._created);
+}
+
+Stats.prototype.dump_stats = function() {
+    var i;
+    console.log("*** STATS as of %d ticks ***", this._sim._tick);
+    console.log("** Average latency by source floor **");
+    for (i = 0; i < this._sim._parms.max_floor; i++) {
+        if (this._passengers_delivered[i]) {
+                console.log("%d: %d [%d passengers]", i,
+                        Math.floor(this._latency[i] / this._passengers_delivered[i]),
+                        this._passengers_delivered[i]);
+        } else {
+            console.log("%d: No passengers delivered", i);
+        }
+    }
 }
 
 function Building(sim) {
@@ -124,9 +157,10 @@ function Simulation(parms) {
     this._clock = [];
     this._tick  = 0;
     this._building = new Building(this);
+    this._stats = new Stats(this);
     this.new_passenger();
 }
-        
+
 Simulation.prototype.run = function (ticks) {
     var i;
     for (i = 0; i < ticks; i++)
@@ -136,7 +170,7 @@ Simulation.prototype.run = function (ticks) {
 Simulation.prototype.tick = function () {
     var i,q;
     this._clock.sort(function(a, b) { return b.tick - a.tick;});
-    
+
     i = this._clock.length - 1;
     q = [];
     while (i >= 0 && this._clock[i].tick == this._tick) {
@@ -155,7 +189,7 @@ Simulation.prototype.at = function (tick, cb) {
 Simulation.prototype.after = function (delay, cb) {
     this.at(this._tick + delay, cb);
 }
-        
+
 Simulation.prototype.move = function (car, direction, cb) {
     console.assert(direction === UP || direction === DOWN);
     console.assert(direction === UP || car._floor > 0);
@@ -165,13 +199,13 @@ Simulation.prototype.move = function (car, direction, cb) {
                    cb();
                });
 }
-        
+
 Simulation.prototype.load_time = function (load, unload) {
-    return this._parms.door_delay + 
+    return this._parms.door_delay +
         Math.max((load + unload) * this._parms.load_time,
                  this._parms.min_load_wait);
 }
-        
+
 Simulation.prototype.load_unload = function (car, dir, cb) {
     var floor = this._building._floors[car._floor];
     var wait;
@@ -194,7 +228,7 @@ Simulation.prototype.load_unload = function (car, dir, cb) {
     car._passengers = car._passengers.filter(function(p) {
         return p._dest !== car._floor;
     });
-    
+
     wait = this.load_time(load.length, unload.length);
     debug("Car", car._number, "at", car._floor, "loading/unloading",
     load.length, "/", unload.length, "moving", dir === DOWN ? "down" : "up");
@@ -206,19 +240,19 @@ Simulation.prototype.load_unload = function (car, dir, cb) {
         cb();
     });
 }
-        
+
 Simulation.prototype.call_elevator = function(floor, direction) {
     if (this._building._floors[floor].loading === null)
         this._building._floors[floor].called[direction] = true;
 }
-        
+
 Simulation.prototype.add_passenger = function (p) {
     var direction = (p._start > p._dest) ? DOWN : UP;
     // console.log("New passenger at", p._start, "->", p._dest);
     this._building._floors[p._start].passengers.push(p);
     this.call_elevator(p._start, direction);
 }
-        
+
 Simulation.prototype.new_passenger = function () {
     var start, dest;
     if (flip()) {
@@ -228,7 +262,7 @@ Simulation.prototype.new_passenger = function () {
         dest  = 0;
         start = random(1, this._parms.max_floor + 1);
     }
-    this.add_passenger(new Passenger(start, dest));
+    this.add_passenger(new Passenger(this, start, dest));
     this.after(this._parms.passenger_delay, this.new_passenger.bind(this));
 }
 
@@ -239,21 +273,16 @@ var s = new Simulation({
                            min_load_wait:   8,
                            load_time:       1, /* ticks/passenger */
                            door_delay:      2,
-                           passenger_delay: 3
+                           passenger_delay: 4
                        });
-                       
+
 function dump_floors() {
     console.log("floors:", s._building._elevators.map(function (e) {
                                                           return e._floor;
                                                       }));
     s.after(10, dump_floors);
 }
-s.after(0, dump_floors);
-s.run(500);
+// s.after(0, dump_floors);
+s.run(10000);
 
-console.log("floors:", s._building._elevators.map(function (e) {
-                                                      return e._floor;
-                                                  }));
-console.log("passengers:", s._building._floors.map(function (f) {
-                                                       return f.passengers.length;
-                                                   }));
+s._stats.dump_stats();
