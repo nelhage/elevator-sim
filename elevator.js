@@ -102,6 +102,7 @@ function Passenger(sim, start, dest) {
 
 Passenger.prototype.loaded = function (e) {
     e._pressed[this._dest] = true;
+    this._sim._stats.loaded(this);
 }
 
 Passenger.prototype.arrive = function () {
@@ -110,32 +111,45 @@ Passenger.prototype.arrive = function () {
 
 function Stats(sim) {
     this._sim = sim;
-    this._passengers_delivered = [];
-    this._latency = [];
+    this._stats = []
     for (var i = 0; i <= this._sim._parms.max_floor; i++) {
-        this._passengers_delivered.push(0);
-        this._latency.push(0);
+        this._stats.push({
+            floor: i,
+            latency:   0,
+            delivered: 0,
+            load_wait: 0})
     }
 }
 
+Stats.prototype.loaded = function (p) {
+    this._stats[p._start].load_wait += (this._sim._tick - p._created);
+}
+
 Stats.prototype.arrived = function (p) {
-    this._passengers_delivered[p._start]++;
-    this._latency[p._start] += (this._sim._tick - p._created);
+    this._stats[p._start].delivered++;
+    this._stats[p._start].latency += (this._sim._tick - p._created);
 }
 
 Stats.prototype.dump_stats = function() {
     var i;
     console.log("*** STATS as of %d ticks ***", this._sim._tick);
     console.log("** Average latency by source floor **");
-    for (i = 0; i < this._sim._parms.max_floor; i++) {
-        if (this._passengers_delivered[i]) {
-                console.log("%d: %d [%d passengers]", i,
-                        Math.floor(this._latency[i] / this._passengers_delivered[i]),
-                        this._passengers_delivered[i]);
+    this._stats.forEach(function (s) {
+        if (s.delivered) {
+                console.log("%d: %d/%d [%d passengers]",
+                        s.floor,
+                        Math.floor(s.load_wait / s.delivered),
+                        Math.floor(s.latency   / s.delivered),
+                        s.delivered);
         } else {
-            console.log("%d: No passengers delivered", i);
+            console.log("%d: No passengers delivered", s.floor);
         }
-    }
+    });
+    var stranded = 0;
+    this._sim._building._floors.forEach(function (f) {
+        stranded += f.passengers.length;
+    });
+    console.log("Stranded passengers: %d", stranded);
 }
 
 function Building(sim) {
@@ -273,7 +287,7 @@ var s = new Simulation({
                            min_load_wait:   8,
                            load_time:       1, /* ticks/passenger */
                            door_delay:      2,
-                           passenger_delay: 4
+                           passenger_delay: 2
                        });
 
 function dump_floors() {
