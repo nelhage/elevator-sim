@@ -285,24 +285,31 @@ Simulation.prototype.new_passenger = function () {
     this.add_passenger(new Passenger(this, start, dest));
 }
 
-var s = new Simulation({
-                           num_elevators:   4,
-                           max_floor:       39,
-                           ticks_per_floor: 1,
-                           min_load_wait:   8,
-                           load_time:       1, /* ticks/passenger */
-                           door_delay:      2,
-                           capacity:        10,
-                           passenger_rate:  10
-                       });
+var options = {
+    num_elevators:   4,
+    max_floor:       39,
+    ticks_per_floor: 1,
+    min_load_wait:   8,
+    load_time:       1, /* ticks/passenger */
+    door_delay:      2,
+    capacity:        10,
+    passenger_rate:  10
+};
 
-function dump_floors() {
-    console.log("floors:", s._building._elevators.map(function (e) {
-                                                          return e._floor;
-                                                      }));
-    s.after(10, dump_floors);
+
+var i, s, rate;
+var min_rate = 5, max_rate = 20, steps = 10;
+
+var data = {};
+
+for (i = 0; i < steps; i++) {
+    options.passenger_rate = min_rate + (max_rate - min_rate) * (i / (steps - 1));
+    s = new Simulation(options);
+    console.log("%s...", options.passenger_rate);
+    s.run(100000);
+    data[options.passenger_rate] = s._stats._stats.map(function (s) {
+            return s.latency / s.delivered;
+    });
 }
-// s.after(0, dump_floors);
-s.run(10000);
 
-s._stats.dump_stats();
+console.log(JSON.stringify(data));
