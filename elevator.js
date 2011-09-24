@@ -230,18 +230,21 @@ Simulation.prototype.load_unload = function (car, dir, cb) {
     floor.loading = car;
     delete car._pressed[car._floor];
 
-    load = floor.passengers.filter(function (p) {
-        return (dir === DOWN) === (p._dest < car._floor);
-    });
-    floor.passengers = floor.passengers.filter(function (p) {
-        return (dir === DOWN) !== (p._dest < car._floor);
-    });
     unload = car._passengers.filter(function(p) {
         return p._dest === car._floor;
     });
     car._passengers = car._passengers.filter(function(p) {
         return p._dest !== car._floor;
     });
+    load = floor.passengers.filter(function (p) {
+        return (dir === DOWN) === (p._dest < car._floor);
+    });
+    floor.passengers = floor.passengers.filter(function (p) {
+        return (dir === DOWN) !== (p._dest < car._floor);
+    });
+    while (load.length + car._passengers.length > this._parms.capacity) {
+        floor.passengers.push(load.shift());
+    }
 
     wait = this.load_time(load.length, unload.length);
     debug("Car", car._number, "at", car._floor, "loading/unloading",
@@ -289,7 +292,8 @@ var s = new Simulation({
                            min_load_wait:   8,
                            load_time:       1, /* ticks/passenger */
                            door_delay:      2,
-                           passenger_rate:  2.5
+                           capacity:        10,
+                           passenger_rate:  10
                        });
 
 function dump_floors() {
