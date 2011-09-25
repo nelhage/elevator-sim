@@ -327,15 +327,15 @@ for (i = 0; i < steps; i++) {
 var series = [];
 var floor;
 var floors = [0, 10, 20, 30, 39];
-for (i = 0; i < floors.length; i++) {
-    floor = floors[i];
+floors.forEach(function (floor) {
     series.push({
       data: data.map(function(d) {
               return [d.rate, d.data[floor]]
           }),
       label: String(floor),
     });
-}
+});
+
 plot(series, {
          yaxis: {
              min: 0,
