@@ -285,6 +285,13 @@ Simulation.prototype.new_passenger = function () {
     this.add_passenger(new Passenger(this, start, dest));
 }
 
+function plot(data, opts) {
+    var dnode = require('dnode');
+    dnode.connect(9000, function (server) {
+        server.plot(data, opts);
+    });
+}
+
 var options = {
     num_elevators:   4,
     max_floor:       39,
@@ -300,16 +307,36 @@ var options = {
 var i, s, rate;
 var min_rate = 5, max_rate = 20, steps = 10;
 
-var data = {};
+var data  = [];
 
 for (i = 0; i < steps; i++) {
     options.passenger_rate = min_rate + (max_rate - min_rate) * (i / (steps - 1));
     s = new Simulation(options);
     console.log("%s...", options.passenger_rate);
-    s.run(100000);
-    data[options.passenger_rate] = s._stats._stats.map(function (s) {
-            return s.latency / s.delivered;
-    });
+    s.run(1000000);
+    data.push({
+            rate: options.passenger_rate,
+            data: s._stats._stats.map(
+                function (s) {
+                    return s.latency / s.delivered;
+                })
+            });
 }
 
-console.log(JSON.stringify(data));
+var series = [];
+var floor;
+var floors = [0, 10, 20, 30, 39];
+for (i = 0; i < floors.length; i++) {
+    floor = floors[i];
+    series.push({
+      data: data.map(function(d) {
+              return [d.rate, d.data[floor]]
+          }),
+      label: String(floor),
+    });
+}
+plot(series, {
+         yaxis: {
+             min: 0,
+         }
+     });
