@@ -286,10 +286,12 @@ Simulation.prototype.new_passenger = function () {
     this.add_passenger(new Passenger(this, start, dest));
 }
 
-function plot(data, opts) {
+function plot(data, opts, cb) {
     var dnode = require('dnode');
     dnode.connect(9000, function (server) {
         server.plot(data, opts);
+        if (cb)
+            cb();
     });
 }
 
@@ -339,5 +341,7 @@ floors.forEach(function (floor) {
 plot(series, {
          yaxis: {
              min: 0,
+             max: 2000
          }
-     });
+     },
+     process.exit.bind(process, 0));
