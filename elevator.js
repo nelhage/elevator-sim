@@ -272,9 +272,8 @@ Simulation.prototype.add_passenger = function (p) {
 
 Simulation.prototype.new_passenger = function () {
     var start, dest;
-    this.after(1, this.new_passenger.bind(this));
-    if (Math.random() > (1 / this._parms.passenger_rate))
-        return;
+    var next = random(1, 2 * this._parms.passenger_rate);
+    this.after(next, this.new_passenger.bind(this));
     if (flip()) {
         start = 0;
         dest  = random(1, this._parms.max_floor + 1);
