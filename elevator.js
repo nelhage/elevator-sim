@@ -55,14 +55,10 @@ Elevator.prototype.deliver_passengers = function () {
     var dir;
     if (Object.keys(this._pressed).length === 0)
         return this.idle();
-    for (p in this._pressed) {
-        if (!this._pressed.hasOwnProperty(p))
-            continue;
-        if (p < this._floor)
+    if (Object.keys(this._pressed)[0] < this._floor)
             dir = DOWN;
         else
             dir = UP;
-    }
     debug("car", this._number, "delivering", (dir === DOWN)?"down":"up");
     this.moveUntil(dir,
                    function () {
