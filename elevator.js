@@ -205,9 +205,11 @@ Simulation.prototype.after = function (delay, cb) {
 }
 
 Simulation.prototype.move = function (car, direction, cb) {
+    /*
     console.assert(direction === UP || direction === DOWN);
     console.assert(direction === UP || car._floor > 0);
     console.assert(direction === DOWN || car._floor < this._parms.max_floor);
+     */
     this.after(this._parms.ticks_per_floor, function () {
                    car._floor += (direction === UP) ? 1 : -1;
                    cb();
