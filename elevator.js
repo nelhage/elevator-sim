@@ -191,9 +191,13 @@ Simulation.prototype.tick = function () {
         q.push(this._clock.pop());
         i--;
     }
-    for (i = 0; i < q.length; i++)
-        q[i].cb();
-    this._tick++;
+    if (q.length == 0) {
+        this._tick = this._clock[this._clock.length - 1].tick;
+    } else {
+        for (i = 0; i < q.length; i++)
+            q[i].cb();
+        this._tick++;
+    }
 }
 
 Simulation.prototype.at = function (tick, cb) {
