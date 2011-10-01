@@ -21,10 +21,10 @@ function Elevator(building, n) {
     this._parms      = this._sim._parms;
     this._number     = n;
     this._floor      = 0;
+    this._dest       = null;
     this._passengers = [];
     this._pressed    = {};
-    this._last_move  = null;
-    this._sim.after(0, this.idle.bind(this));
+    this._idle       = true;
 }
 
 Elevator.prototype.parms = function() {
@@ -32,52 +32,82 @@ Elevator.prototype.parms = function() {
 }
 
 Elevator.prototype.idle = function() {
-    if (this._building._floors[this._floor].called[this._last_move]) {
-        this._sim.load_unload(this, this._last_move,
-            this.deliver_passengers.bind(this));
-        return;
+    this._idle = true;
+    this._dest = null;
+    this._building.run_queue();
+    /*
+    if (this._idle && this._floor !== 0) {
+        this.moveUntil(DOWN, function() {
+                           return this._floor === 0 || !this._idle;
+                       },
+                       function () {});
     }
-    var dir;
-    if (this._floor === 0)
-        dir = UP;
-    else if (this._floor === this.parms().max_floor)
-        dir = DOWN;
-    else
-        dir = flip() ? UP : DOWN;
-    this.moveUntil(dir,
-                   function () {
-                       return this._building._floors[this._floor].called[dir];
-                   }.bind(this),
-                   this.idle.bind(this));
+    */
+}
+
+Elevator.prototype.wake_up = function(floor) {
+    if (this._idle) {
+        this._idle = false;
+        this._dest = floor;
+        if (this._dest === floor)
+            this._sim.after(0, this.deliver_passengers.bind(this));
+        else
+            this._sim.after(0, this.move_towards_dest.bind(this));
+    }
 }
 
 Elevator.prototype.deliver_passengers = function () {
-    var dir;
-    if (Object.keys(this._pressed).length === 0)
-        return this.idle();
-    if (Object.keys(this._pressed)[0] < this._floor)
-            dir = DOWN;
-        else
+    var dir = null;
+    console.assert(!this._idle);
+    if (this._dest !== null) {
+        if (this._floor < this._dest)
             dir = UP;
-    debug("car", this._number, "delivering", (dir === DOWN)?"down":"up");
+        else if (this._floor > this._dest)
+            dir = DOWN;
+    }
+    if (dir === null) {
+        [UP,DOWN].forEach(function (d) {
+                if (this._building._floors[this._floor].called[d])
+                    dir = d;
+                }.bind(this));
+    }
+    if (dir === null) {
+        this.idle();
+        return;
+    }
+
+    if (this._pressed[this._floor] ||
+        this._building._floors[this._floor].called[dir]) {
+        this._sim.load_unload(this, dir,
+            this.move_towards_dest.bind(this));
+        return;
+    }
+    if (this._dest !== null && this._floor !== this._dest) {
+        this.move_towards_dest();
+        return;
+    }
+    this.idle();
+}
+
+Elevator.prototype.move_towards_dest = function() {
+    debug("Car %d at %d moving to %d...",
+        this._number, this._floor, this._dest);
+    if (this._floor === this._dest) {
+        this.deliver_passengers();
+        return;
+    }
+    var dir = (this._floor < this._dest) ? UP : DOWN;
     this.moveUntil(dir,
                    function () {
-                       return this._building._floors[this._floor].called[dir] ||
-                           this._pressed[this._floor];
+                       return this._floor === this._dest ||
+                           this._pressed[this._floor] ||
+                           this._building._floors[this._floor].called[dir];
                    }.bind(this),
-                   function () {
-                       var dir = this._last_move;
-                       if (this._floor === 0)
-                           dir = UP;
-                       else if (this._floor === this._parms.max_floor)
-                           dir = DOWN;
-                       this._sim.load_unload(this, dir,
-                         this.deliver_passengers.bind(this));
-                   }.bind(this));
+                   this.deliver_passengers.bind(this)
+                  );
 }
 
 Elevator.prototype.moveUntil = function(dir, done, next) {
-    this._last_move = dir;
     this._sim.move(this, dir,
         function() {
             if (this._floor === this.parms().max_floor
@@ -89,6 +119,18 @@ Elevator.prototype.moveUntil = function(dir, done, next) {
         }.bind(this));
 }
 
+Elevator.prototype.press_button = function (floor) {
+    if (!this._pressed[floor]) {
+        this._pressed[floor] = true;
+        if (this._dest == this._floor)
+            this._dest = floor;
+        else if (this._dest > this._floor)
+            this._dest = Math.max(this._dest, floor);
+        else
+            this._dest = Math.min(this._dest, floor);
+    }
+}
+
 function Passenger(sim, start, dest) {
     this._sim     = sim;
     this._start   = start;
@@ -97,7 +139,7 @@ function Passenger(sim, start, dest) {
 }
 
 Passenger.prototype.loaded = function (e) {
-    e._pressed[this._dest] = true;
+    e.press_button(this._dest);
     this._sim._stats.loaded(this);
 }
 
@@ -159,8 +201,9 @@ Stats.prototype.dump_stats = function() {
 function Building(sim) {
     var i;
     this._sim = sim;
-    this._elevators = [];
-    this._floors    = [];
+    this._elevators  = [];
+    this._floors     = [];
+    this._call_queue = [];
     for (i = 0; i < sim._parms.num_elevators; i++)
         this._elevators.push(new Elevator(this, i));
     for (i = 0; i <= sim._parms.max_floor; i++)
@@ -170,7 +213,53 @@ function Building(sim) {
                 called:     { UP: false, DOWN: false}});
 }
 
-function Simulation(parms) {
+Building.prototype.call_elevator = function (floor, direction) {
+    if (this._floors[floor].loading === null &&
+        !this._floors[floor].called[direction]) {
+        this._floors[floor].called[direction] = true;
+        this.process_call(floor, direction);
+    }
+}
+
+Building.prototype.process_call = function (floor, direction) {
+    var i, e;
+    for (i = 0; i < this._elevators.length; i++) {
+        e = this._elevators[i];
+        if (e._idle) {
+            debug("Dispatching call %d(%d) to idle elevator %d",
+                  floor, direction, e._number);
+            e.wake_up(floor);
+            return;
+        }
+    }
+    for (i = 0; i < this._elevators.length; i++) {
+        e = this._elevators[i];
+        if (direction === UP && e._floor < floor) {
+            e._dest = Math.max(e._dest, floor);
+            return;
+        }
+        if (direction === DOWN && e._floor > floor) {
+            e._dest = Math.min(e._dest, floor);
+            return;
+        }
+    }
+    debug("Deferring call %d(%d)", floor, direction);
+    this._call_queue.push({
+            floor: floor,
+            direction: direction
+        });
+}
+
+Building.prototype.run_queue = function (floor, direction) {
+    var q = this._call_queue;
+    this._call_queue = [];
+    q.forEach(function (e) {
+        if(this._floors[e.floor].called[e.direction])
+            this.process_call(e.floor, e.direction);
+    }.bind(this));
+}
+
+function Simulation (parms) {
     this._parms = parms;
     this._clock = [];
     this._tick  = 0;
@@ -180,8 +269,8 @@ function Simulation(parms) {
 }
 
 Simulation.prototype.run = function (ticks) {
-    var i;
-    for (i = 0; i < ticks; i++)
+    var end = this._tick + ticks;
+    while (this._tick < end)
         this.tick();
 }
 
@@ -269,16 +358,11 @@ Simulation.prototype.load_unload = function (car, dir, cb) {
     });
 }
 
-Simulation.prototype.call_elevator = function(floor, direction) {
-    if (this._building._floors[floor].loading === null)
-        this._building._floors[floor].called[direction] = true;
-}
-
 Simulation.prototype.add_passenger = function (p) {
     var direction = (p._start > p._dest) ? DOWN : UP;
     // console.log("New passenger at", p._start, "->", p._dest);
     this._building._floors[p._start].passengers.push(p);
-    this.call_elevator(p._start, direction);
+    this._building.call_elevator(p._start, direction);
 }
 
 Simulation.prototype.new_passenger = function () {
@@ -317,7 +401,7 @@ var options = {
 
 
 var i, s, rate;
-var min_rate = 5, max_rate = 20, steps = 10;
+var min_rate = 5, max_rate = 10, steps = 15;
 
 var data  = [];
 var series = [];
