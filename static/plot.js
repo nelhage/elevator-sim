@@ -6,7 +6,9 @@ if(window.Prototype) {
 }
 
 window.onload = function () {
-    DNode.connect(function (remote) {
+    DNode.connect({
+      reconnect: 100
+    }, function (remote) {
         remote.register(function (data, opts) {
             Flotr.draw($('plot'), data, opts);
         });
