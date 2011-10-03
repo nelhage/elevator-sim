@@ -6,6 +6,9 @@ var express = require('express'),
 
 var app = express.createServer();
 app.use(express.static(path.join(__dirname, 'static')));
+app.get('/', function (req, res) {
+          res.redirect('/plot.html');
+        })
 
 app.listen(8888);
 console.log('http://localhost:8888/');
