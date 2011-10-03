@@ -108,6 +108,9 @@ Passenger.prototype.arrive = function () {
 function Stats(sim) {
     this._sim = sim;
     this._stats = []
+    this._positions = [];
+    for (var i = 0; i < this._sim._parms.num_elevators; i++)
+        this._positions.push([]);
     for (var i = 0; i <= this._sim._parms.max_floor; i++) {
         this._stats.push({
             floor: i,
@@ -124,6 +127,11 @@ Stats.prototype.loaded = function (p) {
 Stats.prototype.arrived = function (p) {
     this._stats[p._start].delivered++;
     this._stats[p._start].latency += (this._sim._tick - p._created);
+}
+
+Stats.prototype.moved = function (e) {
+    this._positions[e._number].push(
+        [this._sim._tick, e._floor]);
 }
 
 Stats.prototype.dump_stats = function() {
@@ -212,8 +220,9 @@ Simulation.prototype.move = function (car, direction, cb) {
      */
     this.after(this._parms.ticks_per_floor, function () {
                    car._floor += (direction === UP) ? 1 : -1;
+                   this._stats.moved(car, car._floor);
                    cb();
-               });
+               }.bind(this));
 }
 
 Simulation.prototype.load_time = function (load, unload) {
@@ -311,7 +320,22 @@ var i, s, rate;
 var min_rate = 5, max_rate = 20, steps = 10;
 
 var data  = [];
+var series = [];
 
+
+s = new Simulation(options);
+s.run(1000);
+s._stats.dump_stats();
+
+for (i = 0; i < s._parms.num_elevators; i++) {
+    series.push({
+            data: s._stats._positions[i],
+            label: "Elevator " + String(i)
+            });
+}
+plot(series);
+
+/*
 for (i = 0; i < steps; i++) {
     options.passenger_rate = min_rate + (max_rate - min_rate) * (i / (steps - 1));
     s = new Simulation(options);
@@ -326,7 +350,6 @@ for (i = 0; i < steps; i++) {
             });
 }
 
-var series = [];
 var floor;
 var floors = [0, 10, 20, 30, 39];
 floors.forEach(function (floor) {
@@ -345,3 +368,4 @@ plot(series, {
          }
      },
      process.exit.bind(process, 0));
+*/
