@@ -64,6 +64,8 @@ Elevator.prototype.deliver_passengers = function () {
             dir = UP;
         else if (this._floor > this._dest)
             dir = DOWN;
+        else
+            this._dest = null;
     }
     if (dir === null) {
         [UP,DOWN].forEach(function (d) {
@@ -90,9 +92,9 @@ Elevator.prototype.deliver_passengers = function () {
 }
 
 Elevator.prototype.move_towards_dest = function() {
-    debug("Car %d at %d moving to %d...",
+    debug("Car %d at %s moving to %s...",
         this._number, this._floor, this._dest);
-    if (this._floor === this._dest) {
+    if (this._dest === null || this._floor === this._dest) {
         this.deliver_passengers();
         return;
     }
