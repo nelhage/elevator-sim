@@ -233,33 +233,67 @@ Building.prototype.call_elevator = function (floor, direction) {
     }
 }
 
+Building.prototype.compute_weight = function (e, floor, direction) {
+    if (e._idle) {
+        return {
+            weight: Math.abs(e._floor - floor) + 10,
+            dispatch: function () {
+                e.wake_up(floor);
+            }
+        }
+    }
+    if (e._floor < floor && direction === UP) {
+        if (e._dest > floor) {
+            return {
+                weight: 0,
+                dispatch: function () {}
+            }
+        }
+        return {
+            weight: floor - e._floor,
+            dispatch: function () {
+                e._dest = Math.max(e._dest, floor);
+            }
+        }
+    }
+    if (e._floor > floor && direction === DOWN) {
+        if (e._dest < floor) {
+            return {
+                weight: 0,
+                dispatch: function () {}
+            }
+        }
+        return {
+            weight: e._floor - floor,
+            dispatch: function () {
+                e._dest = Math.min(e._dest, floor);
+            }
+        }
+    }
+    return null;
+}
+
 Building.prototype.process_call = function (floor, direction) {
     var i, e;
+    var best = { weight: Number('Infinity') }, obj;
     for (i = 0; i < this._elevators.length; i++) {
-        e = this._elevators[i];
-        if (e._idle) {
-            debug("Dispatching call %d(%d) to idle elevator %d",
-                  floor, direction, e._number);
-            e.wake_up(floor);
-            return;
+        obj = this.compute_weight(this._elevators[i], floor, direction);
+        if (obj !== null && obj.weight < best.weight) {
+            best = obj;
+            best.elevator = this._elevators[i];
         }
     }
-    for (i = 0; i < this._elevators.length; i++) {
-        e = this._elevators[i];
-        if (direction === UP && e._floor < floor) {
-            e._dest = Math.max(e._dest, floor);
-            return;
-        }
-        if (direction === DOWN && e._floor > floor) {
-            e._dest = Math.min(e._dest, floor);
-            return;
-        }
+    if (best.elevator !== undefined) {
+        debug("Dispatching call %d(%d) to %d",
+              floor, direction, best.elevator._number);
+        best.dispatch()
+    } else {
+        debug("Deferring call %d(%d)", floor, direction);
+        this._call_queue.push({
+                                  floor: floor,
+                                  direction: direction
+                              });
     }
-    debug("Deferring call %d(%d)", floor, direction);
-    this._call_queue.push({
-            floor: floor,
-            direction: direction
-        });
 }
 
 Building.prototype.run_queue = function (floor, direction) {
