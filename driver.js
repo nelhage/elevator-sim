@@ -17,6 +17,7 @@ var options = {
     load_time:       1, /* ticks/passenger */
     door_delay:      2,
     capacity:        10,
+    track_position:  false,
     passenger_rate:  10
 };
 

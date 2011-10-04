@@ -184,8 +184,9 @@ Stats.prototype.arrived = function (p) {
 }
 
 Stats.prototype.moved = function (e) {
-    this._positions[e._number].push(
-        [this._sim._tick, e._floor]);
+    if (this._sim._parms.track_position)
+        this._positions[e._number].push(
+            [this._sim._tick, e._floor]);
 }
 
 Stats.prototype.dump_stats = function() {
