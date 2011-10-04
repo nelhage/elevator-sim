@@ -147,6 +147,16 @@ Passenger.prototype.arrive = function () {
     this._sim._stats.arrived(this);
 }
 
+Passenger.prototype.enter_building = function () {
+    this._sim._building.call_elevator(this._start,
+        (this._dest > this._start) ? UP : DOWN);
+}
+
+Passenger.prototype.stranded = function () {
+    this._sim._building.call_elevator(this._start,
+        (this._dest > this._start) ? UP : DOWN);
+}
+
 function Stats(sim) {
     this._sim = sim;
     this._stats = []
@@ -343,6 +353,7 @@ Simulation.prototype.load_unload = function (car, dir, cb) {
         return (dir === DOWN) !== (p._dest < car._floor);
     });
     while (load.length + car._passengers.length > this._parms.capacity) {
+        load[0].stranded();
         floor.passengers.push(load.shift());
     }
 
@@ -362,7 +373,7 @@ Simulation.prototype.add_passenger = function (p) {
     var direction = (p._start > p._dest) ? DOWN : UP;
     // console.log("New passenger at", p._start, "->", p._dest);
     this._building._floors[p._start].passengers.push(p);
-    this._building.call_elevator(p._start, direction);
+    p.enter_building()
 }
 
 Simulation.prototype.new_passenger = function () {
