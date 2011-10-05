@@ -380,7 +380,7 @@ Simulation.prototype.load_time = function (load, unload) {
 Simulation.prototype.load_unload = function (car, dir, cb) {
     var floor = this._building._floors[car._floor];
     var wait;
-    var load, unload;
+    var load, unload, stranded = [];
     console.assert(dir === UP || car._floor > 0);
     console.assert(dir === DOWN || car._floor < this._parms.max_floor);
     floor.called[dir] = false;
@@ -400,7 +400,7 @@ Simulation.prototype.load_unload = function (car, dir, cb) {
         return (dir === DOWN) !== (p._dest < car._floor);
     });
     while (load.length + car._passengers.length > this._parms.capacity) {
-        load[0].stranded();
+        stranded.push(load[0]);
         floor.passengers.push(load.shift());
     }
 
@@ -412,6 +412,9 @@ Simulation.prototype.load_unload = function (car, dir, cb) {
         load.map(function (p) {p.loaded(car);})
         unload.map(function (p) {p.arrive();})
         floor.loading = null;
+        stranded.forEach(function (p) {
+            p.stranded();
+        });
         cb();
     });
 }
