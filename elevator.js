@@ -201,8 +201,13 @@ Stats.prototype.dump_stats = function() {
         }
     });
     var stranded = 0;
+    i = 0;
     this._sim._building._floors.forEach(function (f) {
         stranded += f.passengers.length;
+        console.log("Floor %d: stranded: %d %s%s",
+            i++, f.passengers.length,
+            f.called[UP] ? "U" : "",
+            f.called[DOWN] ? "D" : "");
     });
     console.log("Stranded passengers: %d", stranded);
 }
