@@ -219,7 +219,7 @@ function Building(sim) {
         this._floors.push({
                 passengers: [],
                 loading:    null,
-                called:     { UP: false, DOWN: false}});
+                called:     {}});
 }
 
 Building.prototype.call_elevator = function (floor, direction) {
