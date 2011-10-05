@@ -3,10 +3,6 @@ var assert = require('assert');
 
 const UP = 1, DOWN = 0;
 
-function debug() {
-    // console.log.apply(console, arguments);
-}
-
 function flip() {
     return Math.random() < 0.5;
 }
@@ -92,7 +88,7 @@ Elevator.prototype.deliver_passengers = function () {
 }
 
 Elevator.prototype.move_towards_dest = function() {
-    debug("Car %d at %s moving to %s...",
+    this._sim.debug("Car %d at %s moving to %s...",
         this._number, this._floor, this._dest);
     if (this._dest === null || this._floor === this._dest) {
         this.deliver_passengers();
@@ -285,11 +281,13 @@ Building.prototype.process_call = function (floor, direction) {
         }
     }
     if (best.elevator !== undefined) {
-        debug("Dispatching call %d(%d) to %d",
-              floor, direction, best.elevator._number);
+        this._sim.debug("Dispatching call %d(%d) to elevator %d at %d",
+              floor, direction,
+              best.elevator._number,
+              best.elevator._floor);
         best.dispatch()
     } else {
-        debug("Deferring call %d(%d)", floor, direction);
+        this._sim.debug("Deferring call %d(%d)", floor, direction);
         this._call_queue.push({
                                   floor: floor,
                                   direction: direction
@@ -313,6 +311,13 @@ function Simulation (parms) {
     this._building = new Building(this);
     this._stats = new Stats(this);
     this.new_passenger();
+}
+
+Simulation.prototype.debug = function() {
+    /*
+    process.stdout.write("[tick " + this._tick.toString() + "] ");
+    console.log.apply(console, arguments);
+    */
 }
 
 Simulation.prototype.run = function (ticks) {
@@ -395,7 +400,7 @@ Simulation.prototype.load_unload = function (car, dir, cb) {
     }
 
     wait = this.load_time(load.length, unload.length);
-    debug("Car", car._number, "at", car._floor, "loading/unloading",
+    this.debug("Car", car._number, "at", car._floor, "loading/unloading",
     load.length, "/", unload.length, "moving", dir === DOWN ? "down" : "up");
     this.after(wait, function () {
         car._passengers = car._passengers.concat(load);
