@@ -44,7 +44,7 @@ plot(series);
 /*
 for (i = 0; i < steps; i++) {
     options.passenger_rate = min_rate + (max_rate - min_rate) * (i / (steps - 1));
-    s = new Simulation(options);
+    s = new elevator.Simulation(options);
     console.log("%s...", options.passenger_rate);
     s.run(1000000);
     data.push({
