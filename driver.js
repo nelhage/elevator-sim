@@ -18,60 +18,77 @@ var options = {
     door_delay:      2,
     capacity:        10,
     track_position:  false,
+    debug:           false,
     passenger_rate:  10
 };
 
 
 var i, s, rate;
-var min_rate = 5, max_rate = 10, steps = 15;
+var min_rate, max_rate, steps;
 
 var data  = [];
 var series = [];
+const debug_one = false;
 
-
-s = new elevator.Simulation(options);
-s.run(1000);
-s._stats.dump_stats();
-
-for (i = 0; i < s._parms.num_elevators; i++) {
-    series.push({
-            data: s._stats._positions[i],
-            label: "Elevator " + String(i)
-            });
-}
-plot(series);
-
-/*
-for (i = 0; i < steps; i++) {
-    options.passenger_rate = min_rate + (max_rate - min_rate) * (i / (steps - 1));
+if (debug_one) {
     s = new elevator.Simulation(options);
-    console.log("%s...", options.passenger_rate);
-    s.run(1000000);
-    data.push({
-            rate: options.passenger_rate,
-            data: s._stats._stats.map(
-                function (s) {
-                    return s.latency / s.delivered;
-                })
-            });
-}
+    s.run(100000);
+    s._parms.track_position = true;
+    s.run(1000);
+    s._stats.dump_stats();
 
-var floor;
-var floors = [0, 10, 20, 30, 39];
-floors.forEach(function (floor) {
-    series.push({
-      data: data.map(function(d) {
-              return [d.rate, d.data[floor]]
-          }),
-      label: String(floor),
+    for (i = 0; i < s._parms.num_elevators; i++) {
+        series.push({
+                        data: s._stats._positions[i],
+                        label: "Elevator " + String(i),
+                        points: {show: true},
+                        lines: {show: true}
+                    });
+    }
+    s._building._elevators.forEach(
+        function (e) {
+            console.log("** Elevator %d at %d moving to %d: **",
+                        e._number, e._floor, e._dest);
+            console.log(" pressed: %j", e._pressed);
+            e._passengers.forEach(function (p) {
+                                      console.log("passenger %d -> %d", p._start, p._dest);
+                                  });
+        })
+    plot(series, {}, process.exit.bind(process, 0));
+} else {
+    min_rate = 5;
+    max_rate = 10;
+    steps = 6;
+
+    for (i = 0; i < steps; i++) {
+        options.passenger_rate = min_rate + (max_rate - min_rate) * (i / (steps - 1));
+        s = new elevator.Simulation(options);
+        console.log("%s...", options.passenger_rate);
+        s.run(1000000);
+        data.push({
+                      rate: options.passenger_rate,
+                      data: s._stats._stats.map(
+                          function (s) {
+                              return s.latency / s.delivered;
+                          })
+                  });
+    }
+
+    var floors = [0, 10, 20, 30, 39];
+    floors.forEach(function (floor) {
+        series.push({
+                data: data.map(function(d) {
+                        return [d.rate, d.data[floor]]
+                      }),
+                label: String(floor),
+        });
     });
-});
 
-plot(series, {
-         yaxis: {
-             min: 0,
-             max: 2000
-         }
-     },
-     process.exit.bind(process, 0));
-*/
+    plot(series, {
+             yaxis: {
+                 min: 0,
+                 max: 2000
+             }
+         },
+         process.exit.bind(process, 0));
+}
