@@ -319,10 +319,10 @@ function Simulation (parms) {
 }
 
 Simulation.prototype.debug = function() {
-    /*
-    process.stdout.write("[tick " + this._tick.toString() + "] ");
-    console.log.apply(console, arguments);
-    */
+    if (this._parms.debug) {
+        process.stdout.write("[tick " + this._tick.toString() + "] ");
+        console.log.apply(console, arguments);
+    }
 }
 
 Simulation.prototype.run = function (ticks) {
