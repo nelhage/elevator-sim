@@ -118,14 +118,19 @@ Elevator.prototype.moveUntil = function(dir, done, next) {
 }
 
 Elevator.prototype.press_button = function (floor) {
+    this._sim.debug("Elevator %d at %d->%s, presssed %d",
+                    this._number, this._floor, this._dest, floor);
     if (!this._pressed[floor]) {
         this._pressed[floor] = true;
-        if (this._dest == this._floor)
+        if (this._dest === this._floor || this._dest === null) {
             this._dest = floor;
-        else if (this._dest > this._floor)
+        } else if (this._dest > this._floor) {
+            console.assert(floor > this._floor);
             this._dest = Math.max(this._dest, floor);
-        else
+        } else {
+            console.assert(floor < this._floor);
             this._dest = Math.min(this._dest, floor);
+        }
     }
 }
 
