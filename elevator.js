@@ -249,8 +249,8 @@ Building.prototype.compute_weight = function (e, floor, direction) {
             }
         }
     }
-    if (e._floor < floor && direction === UP) {
-        if (e._dest > floor) {
+    if (e._floor <= floor && e._dest >= e._floor && direction === UP) {
+        if (e._dest >= floor) {
             return {
                 weight: 0,
                 dispatch: function () {}
@@ -263,8 +263,8 @@ Building.prototype.compute_weight = function (e, floor, direction) {
             }
         }
     }
-    if (e._floor > floor && direction === DOWN) {
-        if (e._dest < floor) {
+    if (e._floor >= floor && e._dest <= e._floor && direction === DOWN) {
+        if (e._dest <= floor) {
             return {
                 weight: 0,
                 dispatch: function () {}
