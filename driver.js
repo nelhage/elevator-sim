@@ -56,20 +56,20 @@ if (debug_one) {
         })
     plot(series, {}, process.exit.bind(process, 0));
 } else {
-    min_rate = 5;
-    max_rate = 10;
-    steps = 6;
+    min_rate = 2;
+    max_rate = 30;
+    steps = (max_rate - min_rate) + 1;
 
     for (i = 0; i < steps; i++) {
-        options.passenger_rate = min_rate + (max_rate - min_rate) * (i / (steps - 1));
+        options.passenger_rate = min_rate * Math.pow(max_rate / min_rate, i / (steps - 1));
         s = new elevator.Simulation(options);
         console.log("%s...", options.passenger_rate);
-        s.run(1000000);
+        s.run(100000);
         data.push({
                       rate: options.passenger_rate,
                       data: s._stats._stats.map(
                           function (s) {
-                              return s.latency / s.delivered;
+                              return s.delivered;
                           })
                   });
     }
@@ -78,7 +78,7 @@ if (debug_one) {
     floors.forEach(function (floor) {
         series.push({
                 data: data.map(function(d) {
-                        return [d.rate, d.data[floor]]
+                        return [1/d.rate, d.data[floor]]
                       }),
                 label: String(floor),
         });
