@@ -1,7 +1,8 @@
 /* -*- mode: js2; js2-basic-offset: 4; -*- */
+"use strict";
 var assert = require('assert');
 
-const UP = 1, DOWN = 0;
+var UP = 1, DOWN = 0;
 
 function flip() {
     return Math.random() < 0.5;

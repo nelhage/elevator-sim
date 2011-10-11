@@ -1,3 +1,4 @@
+"use strict";
 var elevator = require('./elevator.js');
 var dnode = require('dnode');
 
@@ -28,7 +29,7 @@ var min_rate, max_rate, steps;
 
 var data  = [];
 var series = [];
-const debug_one = false;
+var debug_one = false;
 
 if (debug_one) {
     s = new elevator.Simulation(options);
